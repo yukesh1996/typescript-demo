@@ -1,58 +1,114 @@
-import { NextFunction } from 'express';
+import { NextFunction, Request, Response } from "express";
+import { ValidationError } from "express-validation";
+import logger from "../../config/logger/Logger";
+import APIResponse from "./APIResponse";
+import Exception from "./Exception";
 
-export class ResponseHandler {
 
-  static handle = (req: any, res: any, next: NextFunction) => {
+export function sendResponse(res: Response, result: any): Response {
+  try {
+    if (result && result.error && result.error.errorCode === 1) {
+      return res.status(500).send(result);
+    }
 
-    res.errors = [];
+    // Internal server error
+    if (result && result.error && result.error.errorCode === 2) {
+      return res.status(400).send(result);
+    }
 
-    res.sendData = (data: any, headers: any) => {
-      const resData = {
-        headers: headers || req.body.headers || {},
-        result: {
-          status: true,
-          message: 'Transaction completed successfully',
-        },
-        responseData: data,
-        errors: null,
-      };
+    // Bad request
+    if (
+      result &&
+      result.error &&
+      (result.error.errorCode === 5 || result.error.errorCode === 6)
+    ) {
+      return res.status(401).send(result);
+    }
 
-      res.status(200).send(resData);
-    };
-
-    res.sendError = (err: any, field: any, message: any, vals: any) => {
-      if (typeof err === 'string') {
-        res.addErrorByCode(err,field,message,vals);
-      } else if (err) {
-        res.addErrorByObj(err,field,message,vals);
-      }
-
-      const resData = {
-        headers: req.body.headers,
-        result: {
-          status: false,
-          message: 'Transaction failed'
-        },
-        responseData: null,
-        errors: res.errors,
-      };
-
-      const unauthorizedCodes = ['ERR002'];
-
-      let statusCode = 400;
-
-      if (res.errors && res.errors.length) {
-        const isPresent = res.errors.find((error: { code: string; }) => unauthorizedCodes.includes(error.code));
-
-        if (isPresent) {
-          statusCode = 401;
-        }
-      }
-
-      res.status(statusCode).send(resData);
-    };
-
-    next();
+    // Un-authorized
+    if (result && result.error && result.error.errorCode === 4) {
+      return res.status(409).send(result);
+    } // Conflict and in duplicate data
+    if (result && result.error && result.error.errorCode === 7) {
+      return res.status(429).send(result);
+    }
+    // send status code 200
+    return res.status(200).send(result);
+  } catch (error) {
+    logger.error(error);
+    throw error;
   }
+}
 
+
+export function sendError(res: Response, err?: Exception): void {
+  try {
+    logger.error(err);
+    let error = err?.err;
+    if (err?.error) {
+      error = err.error;
+    }
+    let errorCode = err?.errorCode || 1;
+    let message;
+    if (err instanceof ValidationError) {
+      message = err.details;
+      errorCode = 2;
+    } else if (!err?.message) {
+      message = "Internal Server Error";
+    } else if (typeof err?.message === "string") {
+      message = err?.message;
+    } else {
+      message = err.message;
+    }
+
+    console.log(message);
+
+    let responseError: Exception;
+    if (err instanceof ValidationError) {
+      responseError = new Exception(errorCode, message[0], error);
+      // responseError.message = ;
+    } else {
+      responseError = new Exception(errorCode, message, error);
+      responseError.message = message;
+    }
+
+    const result = new APIResponse(false, responseError);
+    sendResponse(res, result);
+  } catch (error) {
+    // Hopefully never happens...
+    logger.error(error);
+  }
+}
+
+
+export function handleError(
+  err: any,
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  sendError(res, err);
+}
+
+
+export function sendSuccessWithMsg(res: Response, message: string): void {
+  try {
+    const rslt = { message };
+    const result = new APIResponse(true, rslt);
+    sendResponse(res, result);
+  } catch (error) {
+    logger.error(error);
+    throw error;
+  }
+}
+
+
+export function sendSuccess(res: Response, rslt = {}): void {
+  try {
+    const result = new APIResponse(true, rslt);
+    sendResponse(res, result);
+  } catch (error) {
+    logger.error(error);
+    throw error;
+  }
 }

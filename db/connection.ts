@@ -1,7 +1,7 @@
 import { Client } from 'pg';
 import { Dialect } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
-
+import Logger from "../config/logger/Logger";
 const env = process.env.NODE_ENV || 'development';
 
 import config from '../config/db';
@@ -16,13 +16,13 @@ export async function initializeDb() {
     const rs = await client.query(`select exists (select 1 from pg_database where datname = $1) as db_exists`, [db.database]);
 
     if (!rs || !rs.rows.length || !rs.rows[0].db_exists) {
-      console.log(`Creating database ${db.database}`);
+      Logger.info(`Creating database ${db.database}`);
       await client.query(`create database ${db.database};`);
     } else {
-      console.log(`Database ${db.database} exists`);
+      Logger.info(`Database ${db.database} exists`);
     }
   } catch (err) {
-    console.log('Error creating db: ', err);
+    Logger.error('Error creating db: ', err);
   }
 }
 

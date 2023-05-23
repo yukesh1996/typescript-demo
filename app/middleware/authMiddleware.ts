@@ -12,16 +12,16 @@ export class AuthMiddleware {
 
   signToken = (id: number) => {
     return jwt.sign({ id }, this.secretKey);
-   }
-
-  validateToken = (token: string) => {
-   return jwt.verify(token, this.secretKey);
   }
 
-  bearerAuth = (req: Request, res: Response, next: NextFunction) => {
+  validateToken = (token: string) => {
+    return jwt.verify(token, this.secretKey);
+  }
+
+  bearerAuth = (req, res, next) => {
     if (req.headers.authorization) {
-      const token : string = req.headers.authorization;
-      req.user = this.validateToken(token)
+      const token: string = req.headers.authorization;
+      req.user = this.validateToken(token);
       next()
     } else {
       res.status(401).send();

@@ -1,10 +1,18 @@
-import app from './app/app';
+import { Application } from "express";
 import { configureDB } from './app/models';
-const port = process.env.PORT || 3000;
+import Logger from "./config/logger/Logger";
+import createExpressApp from "./app/app";
 
-(async () => {
-  await configureDB();
-  app.listen(port, () => {
-    console.log(`Server listening on Port: ${port}`);
-  });
-})();
+export default async function runServer(): Promise<any> {
+  try {
+    await configureDB();
+    return createExpressApp();
+  } catch (e) {
+    Logger.error("Unable to start the server!", e);
+    return e
+  }
+}
+
+runServer().catch((err) => {
+  Logger.error(`Server Error: ${err}`);
+});

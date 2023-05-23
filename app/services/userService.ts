@@ -1,5 +1,6 @@
+import { compare, hash } from 'bcrypt';
+import { IUser } from '../interfaces/IUser'
 import models from '../models';
-
 export class UserService {
 
     private userModel;
@@ -8,9 +9,17 @@ export class UserService {
         this.userModel = models.UserModel;
     }
 
-    getUserByEmail(where?: any) {
+    createHash = (plainText: string) => {
+        return hash(plainText, 10);
+    }
+
+    compareHash = (plainText: string, hashedStr: string) => {
+        return compare(plainText, hashedStr);
+    }
+
+    getUserByEmail(email: string) {
         return this.userModel.findOne({
-            where,
+            where: { email },
         });
     }
 
@@ -24,7 +33,7 @@ export class UserService {
         return this.userModel.upsert(userDetails, {});
     }
 
-    createUser(userDetails: any) {
+    createUser(userDetails: IUser) {
         return this.userModel.create(userDetails, {});
     }
 
